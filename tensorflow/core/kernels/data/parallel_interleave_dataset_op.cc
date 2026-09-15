@@ -49,6 +49,7 @@ limitations under the License.
 #include "tensorflow/core/lib/strings/stringprintf.h"
 #include "tensorflow/core/platform/blocking_counter.h"
 #include "tensorflow/core/platform/cpu_info.h"
+#include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/errors.h"
 #include "tensorflow/core/platform/stringprintf.h"
 #include "tensorflow/core/profiler/lib/traceme.h"
@@ -399,8 +400,10 @@ class ParallelInterleaveDatasetOp::Dataset : public DatasetBase {
       if (ctx->stats_aggregator()) {
         num_threads++;
       }
-      thread_pool_ = ctx->CreateThreadPool(
-          "data_parallel_interleave_worker_pool", num_threads);
+      thread_pool_ = std::make_unique<thread::ThreadPool>(
+          Env::Default(), ThreadOptions(),
+          "data_parallel_interleave_worker_pool", num_threads,
+          /*low_latency_hint=*/false);
       if (num_parallel_calls_->value == model::kAutotune) {
         num_parallel_calls_->value = std::min(
             GetAutotuneDefaultParallelism(ctx), dataset()->cycle_length_);
